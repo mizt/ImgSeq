@@ -137,11 +137,11 @@
         const sy = window.innerHeight/height;
         if(sx<sy) {
           Object.assign(renderer.domElement.style,{"width":"100dvw","height":"auto","margin":"auto 0"});
-          Object.assign(input.style,{"right":"14px","top":(14+((window.innerHeight-height*sx)>>1))+"px"});
+          if(input) Object.assign(input.style,{"right":"14px","top":(14+((window.innerHeight-height*sx)>>1))+"px"});
         }
         else {
           Object.assign(renderer.domElement.style,{"width":"auto","height":"100dvh","margin":"0 auto"});
-          Object.assign(input.style,{"right":(14+((window.innerWidth-width*sy)>>1))+"px","top":"14px"});
+          if(input) Object.assign(input.style,{"right":(14+((window.innerWidth-width*sy)>>1))+"px","top":"14px"});
         }
       }
       let tid = 0;
