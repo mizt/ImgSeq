@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="UTF-8">
-    <title></title>
+    <title>ImgSeq</title>
+    <meta charset="utf-8">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="data:;base64,=">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <style>
       
       * {
@@ -14,7 +17,7 @@
       }
       
       body {
-        background:#FFF;
+        background:#000;
         width:100dvw;
         height:100dvh;
         overflow:hidden;
@@ -22,7 +25,7 @@
       
       input {
         background:#F00;
-        border: none;
+        border:none;
         width:17px;
         height:17px;
         border-radius:50%;
@@ -31,159 +34,204 @@
       </style>
   </head>
   <body>
-    <script src="ImgSeq.js"></script>
-    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
-    <script type="importmap">
-      {
-          "imports": {
-              "three":"https://unpkg.com/three@0.151.3/build/three.module.js",
-              "three/addons/":"https://unpkg.com/three@0.151.3/examples/jsm/"
-          }
+    <script>
+      
+      const loadScript = (url,callback)=>{
+        const srcipt = document.createElement("script");
+        srcipt.type = "text/javascript";
+        srcipt.src = url;
+        document.body.appendChild(srcipt);
+        srcipt.onload = callback;
       }
-    </script>
-    <script type="module">
-    
-      import * as THREE from "three";
       
-      const codec = 0x6A706567;
-      
-      const width = 1920;
-      const height = 1080;
-      
-      let rec = false;
-      let input = undefined;
-      let encoder = undefined;
-      let writable = undefined;
-      let frameSize = [];
-      
-      const texture = new THREE.WebGLRenderTarget(width,height);
-      const camera = new THREE.PerspectiveCamera(30,width/height,0.1,1000.0);
-      camera.position.set(0,0,8);
-      const scene = new THREE.Scene();
-      const ambientLight = new THREE.AmbientLight(0xFFFFFF,1.0);
-      scene.add(ambientLight);
-      const geometry = new THREE.PlaneGeometry(1,1);
-      const material = new THREE.MeshBasicMaterial({color:0xFF0000FF,side:THREE.DoubleSide});
-      const plane = new THREE.Mesh(geometry,material);
-      plane.position.set(0,0,0);
-      scene.add(plane);
-      const renderer = new THREE.WebGLRenderer({antialias:false});
-      renderer.setPixelRatio(1);
-      renderer.setSize(width,height,false);
-      renderer.setClearColor(0xFFFFFF,1);
-      renderer.outputEncoding = THREE.sRGBEncoding;
-      Object.assign(renderer.domElement.style,{"vertical-align":"top","outline":"1px solid #DDD"});
-      const div = document.createElement("div");
-      Object.assign(div.style,{"display":"flex","width":"100vw","height":"100dvh"});
-      div.appendChild(renderer.domElement);
-      
-      const bufferSize = (width*height)<<2;
-            
-      const DataBuf = Module._malloc(bufferSize);
-      const DataArr= new Uint8Array(Module.HEAPU8.buffer,DataBuf,bufferSize);
-      
-      const pixelBuf = Module._malloc(bufferSize);
-      const pixelArr = new Uint8Array(Module.HEAPU8.buffer,pixelBuf,bufferSize);
-      
-      // https://developer.mozilla.org/en-US/docs/Web/API/Window/showSaveFilePicker#browser_compatibility
-      if(window.showSaveFilePicker&&(codec==0x6A706567||codec==0x706E6720)) {
-                
-        encoder = Module.cwrap((codec==0x6A706567?"encodeJPG":"encodePNG"),"number",["number","number","number","number","number"]);
+      loadScript("./twgl.min.js",()=>{
+        loadScript("./ImgSeq.js",()=>{
         
-        input = document.createElement("input");
-        input.type = "button";
-        input.style.cursor = "pointer";
-        Object.assign(input.style,{position:"absolute"});
+          const codec = 0x6A706567;
           
-        const onClick = async (e)=>{
-          if(rec==false) {
-            const handle = await window.showSaveFilePicker({types:[{accept:{"video/quicktime":[".mov"]}}]});
-            input.style.background = "#808080";
-            writable = await handle.createWritable();
-            const headerBuf = Module._malloc(11<<2);
-            const headerArr = new Uint32Array(Module.HEAPU32.buffer,headerBuf,11);
-            (Module.cwrap("header","void",["number"]))(headerArr.byteOffset);
-            writable.write(headerArr);
-            Module._free(headerBuf);
-            rec = true;
+          const width = 1920;
+          const height = 1080;
+          
+          let rec = false;
+          let input = undefined;
+          let encoder = undefined;
+          let writable = undefined;
+          let frameSize = [];
+          
+          const bufferSize = (width*height)<<2;
+            
+          const DataBuf = Module._malloc(bufferSize);
+          const DataArr= new Uint8Array(Module.HEAPU8.buffer,DataBuf,bufferSize);
+            
+          const pixelBuf = Module._malloc(bufferSize);
+          const pixelArr = new Uint8Array(Module.HEAPU8.buffer,pixelBuf,bufferSize);
+            
+          const canvas = document.createElement("canvas");
+          Object.assign(canvas,{width:width,height:height});
+          Object.assign(canvas.style,{"vertical-align":"top","outline":"1px solid #222"});
+  
+          const div = document.createElement("div");
+          Object.assign(div.style,{"display":"flex","width":"100vw","height":"100dvh"});
+          div.appendChild(canvas);
+          
+          // https://developer.mozilla.org/en-US/docs/Web/API/Window/showSaveFilePicker#browser_compatibility
+          if(window.showSaveFilePicker&&(codec==0x6A706567||codec==0x706E6720)) {
+            
+            encoder = Module.cwrap((codec==0x6A706567?"encodeJPG":"encodePNG"),"number",["number","number","number","number","number"]);
+            
+            input = document.createElement("input");
+            input.type = "button";
+            input.style.cursor = "pointer";
+            Object.assign(input.style,{position:"absolute"});
+            
+            const onClick = async (e)=>{
+              if(rec==false) {
+                const handle = await window.showSaveFilePicker({types:[{accept:{"video/quicktime":[".mov"]}}]});
+                input.style.background = "#808080";
+                writable = await handle.createWritable();
+                const headerBuf = Module._malloc(11<<2);
+                const headerArr = new Uint32Array(Module.HEAPU32.buffer,headerBuf,11);
+                (Module.cwrap("header","void",["number"]))(headerArr.byteOffset);
+                writable.write(headerArr);
+                Module._free(headerBuf);
+                rec = true;
+              }
+              else {
+                rec = false;
+                const frameSizeBuf = Module._malloc(frameSize.length<<2);
+                const frameSizeArr = new Uint32Array(Module.HEAPU32.buffer,frameSizeBuf,frameSize.length);
+                for(var n=0; n<frameSize.length; n++) frameSizeArr[n] = frameSize[n];
+                const moovBuf = Module._malloc((184+(6*frameSize.length))<<2);
+                const moovArr = new Uint32Array(Module.HEAPU32.buffer,moovBuf,184+(6*frameSize.length));
+                (Module.cwrap("moov","void",["number","number","number","number","number","number"]))(moovArr.byteOffset,codec,width,height,frameSizeArr.byteOffset,frameSize.length);
+                writable.write(moovArr);
+                const mdatSizeBuf = Module._malloc(2<<2);
+                const mdatSizeArr = new Uint32Array(Module.HEAPU32.buffer,mdatSizeBuf,2);
+                (Module.cwrap("mdatSize","void",["number","number","number"]))(mdatSizeArr.byteOffset,frameSizeArr.byteOffset,frameSize.length);
+                writable.write({type:"write",position:9<<2,data:mdatSizeArr});
+                Module._free(mdatSizeBuf);
+                Module._free(frameSizeBuf);
+                Module._free(moovBuf);
+                writable.close();
+                writable = undefined;
+                frameSize = [];
+                input.style.background = "#F00";
+              }
+            }
+            input.addEventListener("click",onClick);
           }
-          else {
-            rec = false;
-            const frameSizeBuf = Module._malloc(frameSize.length<<2);
-            const frameSizeArr = new Uint32Array(Module.HEAPU32.buffer,frameSizeBuf,frameSize.length);
-            for(var n=0; n<frameSize.length; n++) frameSizeArr[n] = frameSize[n];
-            const moovBuf = Module._malloc((184+(6*frameSize.length))<<2);
-            const moovArr = new Uint32Array(Module.HEAPU32.buffer,moovBuf,184+(6*frameSize.length));
-            (Module.cwrap("moov","void",["number","number","number","number","number","number"]))(moovArr.byteOffset,codec,width,height,frameSizeArr.byteOffset,frameSize.length);
-            writable.write(moovArr);
-            const mdatSizeBuf = Module._malloc(2<<2);
-            const mdatSizeArr = new Uint32Array(Module.HEAPU32.buffer,mdatSizeBuf,2);
-            (Module.cwrap("mdatSize","void",["number","number","number"]))(mdatSizeArr.byteOffset,frameSizeArr.byteOffset,frameSize.length);
-            writable.write({type:"write",position:9<<2,data:mdatSizeArr});
-            Module._free(mdatSizeBuf);
-            Module._free(frameSizeBuf);
-            Module._free(moovBuf);
-            writable.close();
-            writable = undefined;
-            frameSize = [];
-            input.style.background = "#F00";
+            
+          const gl = canvas.getContext("experimental-webgl",{antialias:false});
+          
+          const vs = "uniform mat4 u_projectionMatrix; attribute vec2 texcoord; varying vec2 v_texCoord; attribute vec4 position; void main() { v_texCoord = texcoord; gl_Position = u_projectionMatrix*(position+vec4(0.0,0.0,-4.0,0.0)); }"
+          const fs = "precision mediump float; varying vec2 v_texCoord; uniform sampler2D u_texture; void main() { gl_FragColor = texture2D(u_texture,v_texCoord); }"
+          
+          const program = twgl.createProgramFromSources(gl,[vs,fs]);
+          if(program) {
+            
+            const programInfo = twgl.createProgramInfoFromProgram(gl,program);
+            const bufferInfo = twgl.createBufferInfoFromArrays(gl,{
+              position:{numComponents:3,data:[-1,-1,0,1,-1,0,-1,1,0,1,1,0]},
+              texcoord:{numComponents:2,data:[0,0,0,1,1,0,1,1]},
+              indices: {numComponents:3,data:[0,1,2,1,2,3]}
+            });
+            
+            const fov = 60;
+            const near = 0.01;
+            const far = 1000.0;
+            
+            const y = 1.0/Math.tan((fov*0.5)*(Math.PI/180.0));
+            const x = y*(height/width);
+            
+            const video = document.createElement("canvas");
+            video.width = 512;
+            video.height = 512;
+            const context = video.getContext("2d");
+            context.fillStyle = "#00F";
+            context.fillRect(0,0,video.width,video.height);
+            
+            const uniforms = {
+              u_texture:twgl.createTexture(gl,{
+                min:gl.LINEAR,
+                mag:gl.LINEAR,
+                format:gl.RGBA,
+                src:video,
+              }),
+              u_projectionMatrix:[
+                x,0,0,0,
+                0,y,0,0,0,
+                0,-((far+near)/(far-near)),-1,
+                0,0,-((2.0*far*near)/(far-near)),0
+              ]
+            };
+            
+            const color = ()=>{
+              return ""+(((Math.random()*16)>>0).toString(16));
+            }
+            
+            const resize = (e)=>{
+              const sx = window.innerWidth/width;
+              const sy = window.innerHeight/height;
+              if(sx<sy) {
+                Object.assign(canvas.style,{"width":"100dvw","height":"auto","margin":"auto 0"});
+                if(input) Object.assign(input.style,{"right":"14px","top":(14+((window.innerHeight-height*sx)>>1))+"px"});
+              }
+              else {
+                Object.assign(canvas.style,{"width":"auto","height":"100dvh","margin":"0 auto"});
+                if(input) Object.assign(input.style,{"right":(14+((window.innerWidth-width*sy)>>1))+"px","top":"14px"});
+              }
+            }
+            let tid = 0;
+            window.addEventListener("resize",(e)=>{
+              if(tid) clearTimeout(tid);
+              tid = setTimeout((e)=>resize(),15);
+            });
+            resize();
+            
+            if(input) document.body.appendChild(input);
+            document.body.appendChild(div);
+            
+            let cnt = 0;
+            
+            const draw = (e)=>{
+              
+              context.fillStyle = "#00"+cnt.toString(16);
+              cnt++;
+              if(cnt>0xF) cnt = 0;
+              
+              context.fillRect(0,0,video.width,video.height);
+              gl.bindTexture(gl.TEXTURE_2D,uniforms.u_texture)
+              gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,video);
+              
+              gl.viewport(0,0,width,height);
+              gl.enable(gl.DEPTH_TEST);
+              
+              gl.clearColor(0,0,0,1);
+              gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+              
+              gl.useProgram(program);
+              twgl.setBuffersAndAttributes(gl,programInfo,bufferInfo);
+              twgl.setUniforms(programInfo,uniforms);
+              gl.drawElements(gl.TRIANGLES,bufferInfo.numElements,gl.UNSIGNED_SHORT,0);
+              
+              if(input&&rec&&writable) {
+                gl.readPixels(0,0,width,height,gl.RGBA,gl.UNSIGNED_BYTE,pixelArr);
+                const size = encoder(DataArr.byteOffset,pixelArr.byteOffset,width,height,4);
+                if(size) {
+                  frameSize.push(size);
+                  writable.write(new Uint8Array(Module.HEAPU8.buffer,DataBuf,size));
+                }
+                setTimeout(draw,5);
+              }
+              else {
+                setTimeout(draw,1000.0/30.0);
+              }
+            }
+            draw();
+            
           }
-        }
-        input.addEventListener("click",onClick);
-      }
-      
-      const resize = (e)=>{
-        const sx = window.innerWidth/width;
-        const sy = window.innerHeight/height;
-        if(sx<sy) {
-          Object.assign(renderer.domElement.style,{"width":"100dvw","height":"auto","margin":"auto 0"});
-          if(input) Object.assign(input.style,{"right":"14px","top":(14+((window.innerHeight-height*sx)>>1))+"px"});
-        }
-        else {
-          Object.assign(renderer.domElement.style,{"width":"auto","height":"100dvh","margin":"0 auto"});
-          if(input) Object.assign(input.style,{"right":(14+((window.innerWidth-width*sy)>>1))+"px","top":"14px"});
-        }
-      }
-      let tid = 0;
-      window.addEventListener("resize",(e)=>{
-        if(tid) clearTimeout(tid);
-        tid = setTimeout((e)=>resize(),15);
+        });
       });
-      resize();
-      
-      if(input) document.body.appendChild(input);
-      document.body.appendChild(div);
-      
-      let frames = 0;
-      const totalFrames = 60;
-      
-      const draw = (e)=>{
-        
-        plane.rotation.y = Math.PI*2.0*(frames/totalFrames);
-        frames++;
-        
-        if(input) {
-          renderer.setRenderTarget(texture);
-          renderer.render(scene,camera);
-          renderer.readRenderTargetPixels(texture,0,0,width,height,pixelArr);
-        }
-        
-        renderer.setRenderTarget(null);
-        renderer.render(scene,camera);
-        
-        if(rec&&writable) {
-          const size = encoder(DataArr.byteOffset,pixelArr.byteOffset,width,height,4);
-          if(size) {
-            frameSize.push(size);
-            writable.write(new Uint8Array(Module.HEAPU8.buffer,DataBuf,size));
-          }
-          setTimeout(draw,5);
-        }
-        else {
-          setTimeout(draw,1000.0/30.0);
-        }
-      };
-      draw();
       
     </script>
   </body>
