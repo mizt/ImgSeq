@@ -9,6 +9,8 @@
     <style>
       
       * {
+        font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+        font-size:15px;
         margin:0;
         padding:0;
         -webkit-user-select:none;
@@ -68,57 +70,74 @@
             
           const canvas = document.createElement("canvas");
           Object.assign(canvas,{width:width,height:height});
-          Object.assign(canvas.style,{"vertical-align":"top","outline":"1px solid #222"});
+          Object.assign(canvas.style,{"vertical-align":"top","outline":"1px solid #444"});
   
           const div = document.createElement("div");
           Object.assign(div.style,{"display":"flex","width":"100vw","height":"100dvh"});
           div.appendChild(canvas);
           
           // https://developer.mozilla.org/en-US/docs/Web/API/Window/showSaveFilePicker#browser_compatibility
-          if(window.showSaveFilePicker&&(codec==0x6A706567||codec==0x706E6720)) {
+          if(window.showSaveFilePicker) {
             
-            encoder = Module.cwrap((codec==0x6A706567?"encodeJPG":"encodePNG"),"number",["number","number","number","number","number"]);
+            if(codec==0x6A706567||codec==0x706E6720) {
             
-            input = document.createElement("input");
-            input.type = "button";
-            input.style.cursor = "pointer";
-            Object.assign(input.style,{position:"absolute"});
-            
-            const onClick = async (e)=>{
-              if(rec==false) {
-                const handle = await window.showSaveFilePicker({types:[{accept:{"video/quicktime":[".mov"]}}]});
-                input.style.background = "#808080";
-                writable = await handle.createWritable();
-                const headerBuf = Module._malloc(11<<2);
-                const headerArr = new Uint32Array(Module.HEAPU32.buffer,headerBuf,11);
-                (Module.cwrap("header","void",["number"]))(headerArr.byteOffset);
-                writable.write(headerArr);
-                Module._free(headerBuf);
-                rec = true;
+              encoder = Module.cwrap((codec==0x6A706567?"encodeJPG":"encodePNG"),"number",["number","number","number","number","number"]);
+              
+              input = document.createElement("input");
+              input.type = "button";
+              input.style.cursor = "pointer";
+              Object.assign(input.style,{position:"absolute"});
+              
+              const onClick = async (e)=>{
+                if(rec==false) {
+                  const handle = await window.showSaveFilePicker({types:[{accept:{"video/quicktime":[".mov"]}}]});
+                  input.style.background = "#808080";
+                  writable = await handle.createWritable();
+                  const headerBuf = Module._malloc(11<<2);
+                  const headerArr = new Uint32Array(Module.HEAPU32.buffer,headerBuf,11);
+                  (Module.cwrap("header","void",["number"]))(headerArr.byteOffset);
+                  writable.write(headerArr);
+                  Module._free(headerBuf);
+                  rec = true;
+                }
+                else {
+                  rec = false;
+                  const frameSizeBuf = Module._malloc(frameSize.length<<2);
+                  const frameSizeArr = new Uint32Array(Module.HEAPU32.buffer,frameSizeBuf,frameSize.length);
+                  for(var n=0; n<frameSize.length; n++) frameSizeArr[n] = frameSize[n];
+                  const moovBuf = Module._malloc((184+(6*frameSize.length))<<2);
+                  const moovArr = new Uint32Array(Module.HEAPU32.buffer,moovBuf,184+(6*frameSize.length));
+                  (Module.cwrap("moov","void",["number","number","number","number","number","number"]))(moovArr.byteOffset,codec,width,height,frameSizeArr.byteOffset,frameSize.length);
+                  writable.write(moovArr);
+                  const mdatSizeBuf = Module._malloc(2<<2);
+                  const mdatSizeArr = new Uint32Array(Module.HEAPU32.buffer,mdatSizeBuf,2);
+                  (Module.cwrap("mdatSize","void",["number","number","number"]))(mdatSizeArr.byteOffset,frameSizeArr.byteOffset,frameSize.length);
+                  writable.write({type:"write",position:9<<2,data:mdatSizeArr});
+                  Module._free(mdatSizeBuf);
+                  Module._free(frameSizeBuf);
+                  Module._free(moovBuf);
+                  writable.close();
+                  writable = undefined;
+                  frameSize = [];
+                  input.style.background = "#F00";
+                }
               }
-              else {
-                rec = false;
-                const frameSizeBuf = Module._malloc(frameSize.length<<2);
-                const frameSizeArr = new Uint32Array(Module.HEAPU32.buffer,frameSizeBuf,frameSize.length);
-                for(var n=0; n<frameSize.length; n++) frameSizeArr[n] = frameSize[n];
-                const moovBuf = Module._malloc((184+(6*frameSize.length))<<2);
-                const moovArr = new Uint32Array(Module.HEAPU32.buffer,moovBuf,184+(6*frameSize.length));
-                (Module.cwrap("moov","void",["number","number","number","number","number","number"]))(moovArr.byteOffset,codec,width,height,frameSizeArr.byteOffset,frameSize.length);
-                writable.write(moovArr);
-                const mdatSizeBuf = Module._malloc(2<<2);
-                const mdatSizeArr = new Uint32Array(Module.HEAPU32.buffer,mdatSizeBuf,2);
-                (Module.cwrap("mdatSize","void",["number","number","number"]))(mdatSizeArr.byteOffset,frameSizeArr.byteOffset,frameSize.length);
-                writable.write({type:"write",position:9<<2,data:mdatSizeArr});
-                Module._free(mdatSizeBuf);
-                Module._free(frameSizeBuf);
-                Module._free(moovBuf);
-                writable.close();
-                writable = undefined;
-                frameSize = [];
-                input.style.background = "#F00";
-              }
+              input.addEventListener("click",onClick);
             }
-            input.addEventListener("click",onClick);
+          }
+          else {
+            
+            const p = document.createElement("p");
+            p.textContent = "Not Supported: ";
+            Object.assign(p.style,{"color":"#DDD","position":"absolute","z-index":1024,"left":"4px","top":"0"});
+
+            const a = document.createElement("a");
+            a.textContent = "https://developer.mozilla.org/en-US/docs/Web/API/Window/showSaveFilePicker#browser_compatibility";
+            a.href = "https://developer.mozilla.org/en-US/docs/Web/API/Window/showSaveFilePicker#browser_compatibility";
+
+            Object.assign(a.style,{"color":"#DDD"});
+            p.appendChild(a);
+            document.body.appendChild(p);
           }
             
           const gl = canvas.getContext("experimental-webgl",{antialias:false});
