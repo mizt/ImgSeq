@@ -25,18 +25,12 @@
         overflow:hidden;
       }
       
-      input {
-        background:#F00;
-        border:none;
-        width:17px;
-        height:17px;
-        border-radius:50%;
-      }
-      
       </style>
   </head>
   <body>
-    <script>
+    <script type="module">
+      
+      import { Recorder } from "./Recorder.js"
       
       const loadScript = (url,callback)=>{
         const srcipt = document.createElement("script");
@@ -48,98 +42,20 @@
       
       loadScript("./twgl.min.js",()=>{
         loadScript("./ImgSeq.js",()=>{
-        
-          const codec = 0x6A706567;
           
           const width = 1920;
           const height = 1080;
+
+          let recorder = new Recorder(width,height,0x6A706567);
           
-          let rec = false;
-          let input = undefined;
-          let encoder = undefined;
-          let writable = undefined;
-          let frameSize = [];
-          
-          const bufferSize = (width*height)<<2;
-            
-          const DataBuf = Module._malloc(bufferSize);
-          const DataArr= new Uint8Array(Module.HEAPU8.buffer,DataBuf,bufferSize);
-            
-          const pixelBuf = Module._malloc(bufferSize);
-          const pixelArr = new Uint8Array(Module.HEAPU8.buffer,pixelBuf,bufferSize);
-            
           const canvas = document.createElement("canvas");
           Object.assign(canvas,{width:width,height:height});
-          Object.assign(canvas.style,{"vertical-align":"top","outline":"1px solid #444"});
-  
+          Object.assign(canvas.style,{"vertical-align":"top","outline":"1px solid #333"});
+          
           const div = document.createElement("div");
           Object.assign(div.style,{"display":"flex","width":"100vw","height":"100dvh"});
           div.appendChild(canvas);
           
-          // https://developer.mozilla.org/en-US/docs/Web/API/Window/showSaveFilePicker#browser_compatibility
-          if(window.showSaveFilePicker) {
-            
-            if(codec==0x6A706567||codec==0x706E6720) {
-            
-              encoder = Module.cwrap((codec==0x6A706567?"encodeJPG":"encodePNG"),"number",["number","number","number","number","number"]);
-              
-              input = document.createElement("input");
-              input.type = "button";
-              input.style.cursor = "pointer";
-              Object.assign(input.style,{position:"absolute"});
-              
-              const onClick = async (e)=>{
-                if(rec==false) {
-                  const handle = await window.showSaveFilePicker({types:[{accept:{"video/quicktime":[".mov"]}}]});
-                  input.style.background = "#808080";
-                  writable = await handle.createWritable();
-                  const headerBuf = Module._malloc(11<<2);
-                  const headerArr = new Uint32Array(Module.HEAPU32.buffer,headerBuf,11);
-                  (Module.cwrap("header","void",["number"]))(headerArr.byteOffset);
-                  writable.write(headerArr);
-                  Module._free(headerBuf);
-                  rec = true;
-                }
-                else {
-                  rec = false;
-                  const frameSizeBuf = Module._malloc(frameSize.length<<2);
-                  const frameSizeArr = new Uint32Array(Module.HEAPU32.buffer,frameSizeBuf,frameSize.length);
-                  for(var n=0; n<frameSize.length; n++) frameSizeArr[n] = frameSize[n];
-                  const moovBuf = Module._malloc((184+(6*frameSize.length))<<2);
-                  const moovArr = new Uint32Array(Module.HEAPU32.buffer,moovBuf,184+(6*frameSize.length));
-                  (Module.cwrap("moov","void",["number","number","number","number","number","number"]))(moovArr.byteOffset,codec,width,height,frameSizeArr.byteOffset,frameSize.length);
-                  writable.write(moovArr);
-                  const mdatSizeBuf = Module._malloc(2<<2);
-                  const mdatSizeArr = new Uint32Array(Module.HEAPU32.buffer,mdatSizeBuf,2);
-                  (Module.cwrap("mdatSize","void",["number","number","number"]))(mdatSizeArr.byteOffset,frameSizeArr.byteOffset,frameSize.length);
-                  writable.write({type:"write",position:9<<2,data:mdatSizeArr});
-                  Module._free(mdatSizeBuf);
-                  Module._free(frameSizeBuf);
-                  Module._free(moovBuf);
-                  writable.close();
-                  writable = undefined;
-                  frameSize = [];
-                  input.style.background = "#F00";
-                }
-              }
-              input.addEventListener("click",onClick);
-            }
-          }
-          else {
-            
-            const p = document.createElement("p");
-            p.textContent = "Not Supported: ";
-            Object.assign(p.style,{"color":"#DDD","position":"absolute","z-index":1024,"left":"4px","top":"0"});
-
-            const a = document.createElement("a");
-            a.textContent = "https://developer.mozilla.org/en-US/docs/Web/API/Window/showSaveFilePicker#browser_compatibility";
-            a.href = "https://developer.mozilla.org/en-US/docs/Web/API/Window/showSaveFilePicker#browser_compatibility";
-
-            Object.assign(a.style,{"color":"#DDD"});
-            p.appendChild(a);
-            document.body.appendChild(p);
-          }
-            
           const gl = canvas.getContext("experimental-webgl",{antialias:false});
           
           const vs = "uniform mat4 u_projectionMatrix; attribute vec2 texcoord; varying vec2 v_texCoord; attribute vec4 position; void main() { v_texCoord = texcoord; gl_Position = u_projectionMatrix*(position+vec4(0.0,0.0,-4.0,0.0)); }"
@@ -193,11 +109,9 @@
               const sy = window.innerHeight/height;
               if(sx<sy) {
                 Object.assign(canvas.style,{"width":"100dvw","height":"auto","margin":"auto 0"});
-                if(input) Object.assign(input.style,{"right":"14px","top":(14+((window.innerHeight-height*sx)>>1))+"px"});
               }
               else {
                 Object.assign(canvas.style,{"width":"auto","height":"100dvh","margin":"0 auto"});
-                if(input) Object.assign(input.style,{"right":(14+((window.innerWidth-width*sy)>>1))+"px","top":"14px"});
               }
             }
             let tid = 0;
@@ -207,7 +121,6 @@
             });
             resize();
             
-            if(input) document.body.appendChild(input);
             document.body.appendChild(div);
             
             let cnt = 0;
@@ -233,18 +146,14 @@
               twgl.setUniforms(programInfo,uniforms);
               gl.drawElements(gl.TRIANGLES,bufferInfo.numElements,gl.UNSIGNED_SHORT,0);
               
-              if(input&&rec&&writable) {
-                gl.readPixels(0,0,width,height,gl.RGBA,gl.UNSIGNED_BYTE,pixelArr);
-                const size = encoder(DataArr.byteOffset,pixelArr.byteOffset,width,height,4);
-                if(size) {
-                  frameSize.push(size);
-                  writable.write(new Uint8Array(Module.HEAPU8.buffer,DataBuf,size));
-                }
+              if(recorder&&recorder.active()) {
+                recorder.capture(gl);
                 setTimeout(draw,5);
               }
               else {
                 setTimeout(draw,1000.0/30.0);
               }
+              
             }
             draw();
             
