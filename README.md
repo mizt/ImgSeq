@@ -20,4 +20,4 @@ Module.cwrap("encodePNG","number",["number","number","number","number","number"]
 
 #### Demo (default)
 
-[https://mizt.github.io/ImgSeq/](https://mizt.github.io/ImgSeq/)
+[https://mizt.github.io/ImgSeq.js/](https://mizt.github.io/ImgSeq.js/)
