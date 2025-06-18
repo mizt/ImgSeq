@@ -1,4 +1,4 @@
-# ImgSeq
+# ImgSeq.js
 
 Recording JPG/PNG image sequence in a Quicktime container.
 
